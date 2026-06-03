@@ -15,6 +15,14 @@ export class GuessService {
     awayScore: number;
   }) {
     const { poolId, participantId, matchId, homeScore, awayScore } = payload;
+    // 0. validar campos obrigatórios — se faltar/for inválido: { status: 400, message: "..." }
+    const required = { poolId, participantId, matchId, homeScore, awayScore };
+    for (const [field, value] of Object.entries(required)) {
+      if (value === undefined || value === null || !Number.isInteger(value))
+        throw { status: 400, message: `Campo obrigatório inválido: ${field}` };
+    }
+    if (homeScore < 0 || awayScore < 0)
+      throw { status: 400, message: "Placar não pode ser negativo" };
     // 1. buscar a partida pelo matchId — se não existir: { status: 404, message: "Partida não encontrada" }
     const match = await matchRepo.findById(matchId);
     if (!match) 
