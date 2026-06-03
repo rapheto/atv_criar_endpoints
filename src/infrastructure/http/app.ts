@@ -12,7 +12,6 @@ export const createApp = () => {
   app.use(morgan("dev"));
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
-
   app.use("/api", router);
 
   app.use((_req, res) => res.status(404).json({ error: "Not found" }));
