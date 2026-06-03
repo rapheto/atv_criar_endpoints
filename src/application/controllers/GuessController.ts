@@ -39,7 +39,9 @@ export class GuessController {
       const ranking = await service.ranking(poolId);
       res.json(ranking);
     } catch (err: any) {
-      res.status(err.status || 500).json({ error: err.message || "Internal error" });
+      res.status(err.status || 500).json({
+        error: err.message || "Internal error",
+      });
     }
   };
 

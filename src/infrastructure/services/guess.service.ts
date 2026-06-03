@@ -1,10 +1,12 @@
 import { GuessRepository } from "../repositories/guess.repository.js";
 import { MatchRepository } from "../repositories/match.repository.js";
 import { PoolRepository } from "../repositories/pool.repository.js";
+import { RankingRepository } from "../repositories/ranking.repository.js";
 
 const guessRepo = new GuessRepository();
 const matchRepo = new MatchRepository();
 const poolRepo = new PoolRepository();
+const rankingRepo = new RankingRepository();
 
 export class GuessService {
   async create(payload: {
@@ -25,7 +27,7 @@ export class GuessService {
       throw { status: 400, message: "Placar não pode ser negativo" };
     // 1. buscar a partida pelo matchId — se não existir: { status: 404, message: "Partida não encontrada" }
     const match = await matchRepo.findById(matchId);
-    if (!match) 
+    if (!match)
       throw { status: 404, message: "Partida não encontrada" };
     // 2. verificar se match.kickoffAt > new Date() — se não: { status: 409, message: "Partida já iniciada" }
     if (match.kickoffAt <= new Date())
@@ -59,27 +61,32 @@ export class GuessService {
     const pool = await poolRepo.findById(poolId);
     if (!pool) throw { status: 404, message: "Bolão não encontrado" };
 
-    // 2. buscar todos os palpites do bolão (listByPool)
-    const guesses = await guessRepo.listByPool(poolId);
+    // 2. buscar todos os palpites do bolão (RankingRepository)
+    const guesses = await rankingRepo.listByPool(poolId);
 
     // 3. agrupar por participante somando points
-    const map = new Map<number, { participantId: number; name: string; email: string; totalPoints: number }>();
+    const rankingMap = new Map<
+      number,
+      { participantId: number; name: string; email: string; totalPoints: number }
+    >();
 
-    for (const guess of guesses) {
-      const { participantId, participant, points } = guess as any;
-      if (!map.has(participantId)) {
-        map.set(participantId, {
-          participantId,
+    guesses.forEach((guess: any) => {
+      const participant = guess.participant;
+      if (!rankingMap.has(participant.id)) {
+        rankingMap.set(participant.id, {
+          participantId: participant.id,
           name: participant.name,
           email: participant.email,
           totalPoints: 0,
         });
       }
-      map.get(participantId)!.totalPoints += points ?? 0;
-    }
-    // 4. retornar array ordenado por totalPoints desc:
-    //    [{ participantId, name, email, totalPoints }]
-    return Array.from(map.values()).sort((a, b) => b.totalPoints - a.totalPoints);
+      rankingMap.get(participant.id)!.totalPoints += guess.points ?? 0;
+    });
+
+    // 4. retornar array ordenado por totalPoints desc
+    return Array.from(rankingMap.values()).sort(
+      (a, b) => b.totalPoints - a.totalPoints
+    );
   }
 
   async removeParticipant(poolId: number, participantId: number) {
