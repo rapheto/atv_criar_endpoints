@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { GuessService } from "../../infrastructure/services/guess.service.js";
+import { PoolRepository } from "../../infrastructure/repositories/pool.repository.js";
 
 const service = new GuessService();
+const poolRepository = new PoolRepository();
+
 
 export class GuessController {
   create = async (req: Request, res: Response) => {
@@ -34,8 +37,18 @@ export class GuessController {
 
   removeParticipant = async (req: Request, res: Response) => {
     try {
-      // dica: poolId e participantId vêm de req.params (converter para número)
-      // retornar res.status(204).send()
+      const { poolId, participantId } = req.params;
+      const participant = await poolRepository.findParticipant(Number(poolId), Number(participantId));
+      if (!participant) {
+        throw { status: 404, message: "Participante não encontrado" };
+      }
+      const pool = await poolRepository.findById(Number(poolId));
+      if (!pool) {
+        throw { status: 404, message: "Bolão não encontrado" };
+      }
+      const deleted = await poolRepository.removeParticipant(Number(poolId), Number(participantId));
+      res.status(204).json(deleted);
+      
     } catch (err: any) {
       res.status(err.status || 500).json({ error: err.message || "Internal error" });
     }
