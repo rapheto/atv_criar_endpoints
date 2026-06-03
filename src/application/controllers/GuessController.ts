@@ -25,10 +25,15 @@ export class GuessController {
 
   ranking = async (req: Request, res: Response) => {
     try {
-      // dica: poolId vem de req.params.poolId (converter para número)
-      // retornar res.json(ranking)
+      const poolId = Number(req.params.poolId);
+  
+      const ranking = await service.ranking(poolId);
+  
+      return res.json(ranking);
     } catch (err: any) {
-      res.status(err.status || 500).json({ error: err.message || "Internal error" });
+      res.status(err.status || 500).json({
+        error: err.message || "Internal error",
+      });
     }
   };
 

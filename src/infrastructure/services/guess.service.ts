@@ -1,10 +1,12 @@
 import { GuessRepository } from "../repositories/guess.repository.js";
 import { MatchRepository } from "../repositories/match.repository.js";
 import { PoolRepository } from "../repositories/pool.repository.js";
+import { RankingRepository } from "../repositories/ranking.repository.js";
 
 const guessRepo = new GuessRepository();
 const matchRepo = new MatchRepository();
 const poolRepo = new PoolRepository();
+const rankingRepo = new RankingRepository();
 
 export class GuessService {
   async create(payload: {
@@ -14,30 +16,58 @@ export class GuessService {
     homeScore: number;
     awayScore: number;
   }) {
-    // 1. buscar a partida pelo matchId — se não existir: { status: 404, message: "Partida não encontrada" }
-    // 2. verificar se match.kickoffAt > new Date() — se não: { status: 409, message: "Partida já iniciada" }
-    // 3. verificar se participante existe no bolão — se não: { status: 404, message: "Participante não encontrado neste bolão" }
-    // 4. verificar se já existe palpite (findByParticipantAndMatch) — se sim: { status: 409, message: "Palpite já registrado para esta partida" }
-    // 5. criar e retornar o palpite
+    // implementar depois
   }
 
   async update(id: number, payload: { homeScore?: number; awayScore?: number }) {
-    // 1. buscar o palpite pelo id — se não existir: { status: 404, message: "Palpite não encontrado" }
-    // 2. verificar se match.kickoffAt > new Date() — se não: { status: 400, message: "Não é possível editar palpite após o início da partida" }
-    // 3. atualizar e retornar o palpite
+    // implementar depois
   }
 
   async ranking(poolId: number) {
-    // 1. verificar se o bolão existe — se não: { status: 404, message: "Bolão não encontrado" }
-    // 2. buscar todos os palpites do bolão (listByPool)
-    // 3. agrupar por participante somando points
-    // 4. retornar array ordenado por totalPoints desc:
-    //    [{ participantId, name, email, totalPoints }]
+    const pool = await poolRepo.findById(poolId);
+
+    if (!pool) {
+      throw {
+        status: 404,
+        message: "Bolão não encontrado",
+      };
+    }
+
+    const guesses = await rankingRepo.listByPool(poolId);
+
+    const rankingMap = new Map<
+      number,
+      {
+        participantId: number;
+        name: string;
+        email: string;
+        totalPoints: number;
+      }
+    >();
+
+    guesses.forEach((guess: any) => {
+      const participant = guess.participant;
+
+      if (!rankingMap.has(participant.id)) {
+        rankingMap.set(participant.id, {
+          participantId: participant.id,
+          name: participant.name,
+          email: participant.email,
+          totalPoints: 0,
+        });
+      }
+
+      const current = rankingMap.get(participant.id)!;
+
+      current.totalPoints += guess.points ?? 0;
+    });
+
+    return Array.from(rankingMap.values()).sort(
+      (a, b) => b.totalPoints - a.totalPoints
+    );
   }
 
   async removeParticipant(poolId: number, participantId: number) {
-    // 1. verificar se o bolão existe — se não: { status: 404, message: "Bolão não encontrado" }
-    // 2. verificar se participante existe no bolão — se não: { status: 404, message: "Participante não encontrado" }
-    // 3. remover e retornar undefined (204)
+    // implementar depois
   }
 }
