@@ -14,25 +14,64 @@ export class GuessService {
     homeScore: number;
     awayScore: number;
   }) {
+    const { poolId, participantId, matchId, homeScore, awayScore } = payload;
     // 1. buscar a partida pelo matchId — se não existir: { status: 404, message: "Partida não encontrada" }
+    const match = await matchRepo.findById(matchId);
+    if (!match) 
+      throw { status: 404, message: "Partida não encontrada" };
     // 2. verificar se match.kickoffAt > new Date() — se não: { status: 409, message: "Partida já iniciada" }
+    if (match.kickoffAt <= new Date())
+      throw { status: 409, message: "Partida já iniciada" };
     // 3. verificar se participante existe no bolão — se não: { status: 404, message: "Participante não encontrado neste bolão" }
+    const participant = await poolRepo.findParticipant(poolId, participantId);
+    if (!participant)
+      throw { status: 404, message: "Participante não encontrado neste bolão" };
     // 4. verificar se já existe palpite (findByParticipantAndMatch) — se sim: { status: 409, message: "Palpite já registrado para esta partida" }
+    const existing = await guessRepo.findByParticipantAndMatch(participantId, matchId, poolId);
+    if (existing)
+      throw { status: 409, message: "Palpite já registrado para esta partida" };
     // 5. criar e retornar o palpite
+    return guessRepo.create({ poolId, participantId, matchId, homeScore, awayScore });
   }
 
   async update(id: number, payload: { homeScore?: number; awayScore?: number }) {
     // 1. buscar o palpite pelo id — se não existir: { status: 404, message: "Palpite não encontrado" }
+    const guess = await guessRepo.findById(id);
+    if (!guess) throw { status: 404, message: "Palpite não encontrado" };
     // 2. verificar se match.kickoffAt > new Date() — se não: { status: 400, message: "Não é possível editar palpite após o início da partida" }
+    if (guess.match.kickoffAt <= new Date())
+      throw { status: 400, message: "Não é possível editar palpite após o início da partida" };
+
     // 3. atualizar e retornar o palpite
+    return guessRepo.update(id, payload);
   }
 
   async ranking(poolId: number) {
     // 1. verificar se o bolão existe — se não: { status: 404, message: "Bolão não encontrado" }
+    const pool = await poolRepo.findById(poolId);
+    if (!pool) throw { status: 404, message: "Bolão não encontrado" };
+
     // 2. buscar todos os palpites do bolão (listByPool)
+    const guesses = await guessRepo.listByPool(poolId);
+
     // 3. agrupar por participante somando points
+    const map = new Map<number, { participantId: number; name: string; email: string; totalPoints: number }>();
+
+    for (const guess of guesses) {
+      const { participantId, participant, points } = guess as any;
+      if (!map.has(participantId)) {
+        map.set(participantId, {
+          participantId,
+          name: participant.name,
+          email: participant.email,
+          totalPoints: 0,
+        });
+      }
+      map.get(participantId)!.totalPoints += points ?? 0;
+    }
     // 4. retornar array ordenado por totalPoints desc:
     //    [{ participantId, name, email, totalPoints }]
+    return Array.from(map.values()).sort((a, b) => b.totalPoints - a.totalPoints);
   }
 
   async removeParticipant(poolId: number, participantId: number) {

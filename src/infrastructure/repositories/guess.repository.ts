@@ -8,6 +8,12 @@ export class GuessRepository {
   ) {
     // dica: prisma.guess.findUnique com where participantId_matchId_poolId
     // include: { match: true, participant: true }
+    return prisma.guess.findUnique({
+      where: {
+        participantId_matchId_poolId: { participantId, matchId, poolId },
+      },
+      include: { match: true, participant: true },
+    });
   }
 
   async create(data: {
@@ -17,18 +23,27 @@ export class GuessRepository {
     homeScore: number;
     awayScore: number;
   }) {
-    // dica: prisma.guess.create({ data })
+    return prisma.guess.create({ data })
   }
 
   async update(id: number, data: { homeScore?: number; awayScore?: number }) {
-    // dica: prisma.guess.update({ where: { id }, data })
+    return prisma.guess.update({ where: { id }, data })
   }
 
   async findById(id: number) {
     // dica: prisma.guess.findUnique com include match e participant
+    return prisma.guess.findUnique({
+      where: { id },
+      include: { match: true, participant: true },
+    });
   }
 
   async listByPool(poolId: number) {
     // dica: prisma.guess.findMany({ where: { poolId }, include: { participant: true } })
+    return prisma.guess.findMany({
+      where: { poolId },
+      include: { participant: true },
+    });
+
   }
 }

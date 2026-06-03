@@ -17,3 +17,5 @@ router.patch("/guesses/:id", guessCtrl.update);
 // Bolão — ranking e participantes
 router.get("/pools/:poolId/ranking", guessCtrl.ranking);
 router.delete("/pools/:poolId/participants/:participantId", guessCtrl.removeParticipant);
+
+export default router;
