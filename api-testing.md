@@ -83,6 +83,11 @@ curl -i -X POST http://localhost:3001/api/guesses \
   -H "Content-Type: application/json" \
   -d '{"poolId":1,"participantId":2,"matchId":2}'
 
+# ❌ 400 — negative score
+curl -i -X POST http://localhost:3001/api/guesses \
+  -H "Content-Type: application/json" \
+  -d '{"poolId":1,"participantId":2,"matchId":2,"homeScore":-1,"awayScore":0}'
+
 # ❌ 404 — match not found
 curl -i -X POST http://localhost:3001/api/guesses \
   -H "Content-Type: application/json" \
@@ -179,6 +184,79 @@ curl -i -X DELETE http://localhost:3001/api/pools/9999/participants/2
 # ❌ 404 — participant not in pool
 curl -i -X DELETE http://localhost:3001/api/pools/1/participants/9999
 ```
+
+---
+
+## 5. GET /api/pools/:poolId/ranking
+
+Return the pool ranking: participants grouped with their total points, sorted by `totalPoints` descending.
+
+**Responses:**
+
+| Código          | Situação                                                         |
+|-----------------|------------------------------------------------------------------|
+| `200 OK`        | Array de `{ participantId, name, email, totalPoints }` (desc)    |
+| `404 Not Found` | Bolão não existe                                                 |
+
+### Curls
+
+```bash
+# ✅ 200 — ranking of pool 1
+curl -i http://localhost:3001/api/pools/1/ranking
+
+# ❌ 404 — pool not found
+curl -i http://localhost:3001/api/pools/9999/ranking
+```
+
+---
+
+## Validate all endpoints
+
+Run this script to hit every endpoint and print the resulting HTTP status. Start the API first (`npm run dev`) and seed the DB (`npm run db:seed`).
+
+```bash
+#!/usr/bin/env bash
+B=http://localhost:3001/api
+H=(-H "Content-Type: application/json")
+pass=0; fail=0
+check() { # check <label> <expected> <actual>
+  if [ "$2" = "$3" ]; then printf "  ✅ %-45s %s\n" "$1" "$3"; pass=$((pass+1));
+  else printf "  ❌ %-45s expected %s got %s\n" "$1" "$2" "$3"; fail=$((fail+1)); fi
+}
+code() { curl -s -m8 -o /dev/null -w '%{http_code}' "$@"; }
+
+echo "── 1. GET /matches ──"
+check "200 all matches"          200 "$(code "$B/matches")"
+check "200 filter stage=GRUPOS"  200 "$(code "$B/matches?stage=GRUPOS")"
+check "200 filter status=SCHEDULED" 200 "$(code "$B/matches?status=SCHEDULED")"
+
+echo "── 2. POST /guesses ──"
+check "400 missing fields"  400 "$(code -X POST "$B/guesses" "${H[@]}" -d '{"poolId":1,"participantId":1,"matchId":2}')"
+check "400 negative score"  400 "$(code -X POST "$B/guesses" "${H[@]}" -d '{"poolId":1,"participantId":1,"matchId":2,"homeScore":-1,"awayScore":0}')"
+check "404 match not found" 404 "$(code -X POST "$B/guesses" "${H[@]}" -d '{"poolId":1,"participantId":1,"matchId":9999,"homeScore":1,"awayScore":0}')"
+check "404 participant not in pool" 404 "$(code -X POST "$B/guesses" "${H[@]}" -d '{"poolId":1,"participantId":9999,"matchId":2,"homeScore":1,"awayScore":0}')"
+check "409 duplicate guess"  409 "$(code -X POST "$B/guesses" "${H[@]}" -d '{"poolId":1,"participantId":1,"matchId":2,"homeScore":1,"awayScore":0}')"
+
+echo "── 3. PATCH /guesses/:id ──"
+check "200 edit guess id=3"  200 "$(code -X PATCH "$B/guesses/3" "${H[@]}" -d '{"homeScore":4,"awayScore":2}')"
+check "404 guess not found"  404 "$(code -X PATCH "$B/guesses/9999" "${H[@]}" -d '{"homeScore":1,"awayScore":1}')"
+
+echo "── 4. DELETE /pools/:poolId/participants/:participantId ──"
+check "404 participant not found" 404 "$(code -X DELETE "$B/pools/1/participants/9999")"
+check "404 pool not found"        404 "$(code -X DELETE "$B/pools/9999/participants/1")"
+
+echo "── 5. GET /pools/:poolId/ranking ──"
+check "200 ranking"        200 "$(code "$B/pools/1/ranking")"
+check "404 pool not found" 404 "$(code "$B/pools/9999/ranking")"
+
+echo
+echo "Result: $pass passed, $fail failed"
+[ "$fail" -eq 0 ]
+```
+
+> Notes:
+> - The `201 Created` POST and `204 No Content` DELETE are **destructive/stateful** (create or remove rows), so they are not in the idempotent runner above — test them manually with the curls in sections 2 and 4 on a freshly seeded DB.
+> - `409 match already started` (POST) and `400 edit after kickoff` (PATCH) require a match with `kickoffAt` in the past — see the Tips section.
 
 ---
 
