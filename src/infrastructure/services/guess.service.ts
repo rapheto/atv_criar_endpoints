@@ -84,7 +84,12 @@ export class GuessService {
 
   async removeParticipant(poolId: number, participantId: number) {
     // 1. verificar se o bolão existe — se não: { status: 404, message: "Bolão não encontrado" }
+    const pool = await poolRepo.findById(poolId);
+    if (!pool) throw { status: 404, message: "Bolão não encontrado" };
     // 2. verificar se participante existe no bolão — se não: { status: 404, message: "Participante não encontrado" }
+    const participant = await poolRepo.findParticipant(poolId, participantId);
+    if (!participant) throw { status: 404, message: "Participante não encontrado" };
     // 3. remover e retornar undefined (204)
+    await poolRepo.removeParticipant(poolId, participantId);
   }
 }

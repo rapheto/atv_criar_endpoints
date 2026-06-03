@@ -3,6 +3,7 @@ import { GuessService } from "../../infrastructure/services/guess.service.js";
 
 const service = new GuessService();
 
+
 export class GuessController {
   create = async (req: Request, res: Response) => {
     try {
